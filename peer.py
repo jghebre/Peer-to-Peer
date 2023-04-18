@@ -1,12 +1,14 @@
+import multiprocessing
 from socket import *
+
 from collections import deque
-from multiprocessing import Process,Manager
+from multiprocessing import Manager, Process
 from datetime import datetime
 
 import platform
 import traceback
 
-
+import os
 
 
 # Define the server's IP address and port
@@ -38,6 +40,36 @@ def colored_text(text, color, bold=False):
 
 def separator() :
     colored_text("-" * 80, "magenta")
+
+
+def download_rfc_locally(local_rfc_list):
+
+    rfc_number = input("Enter number of RFC to be downloaded: ")
+    
+    rfc_exists = False
+
+    for rfc in local_rfc_list:
+        if rfc['rfc_number'] == rfc_number:
+            rfc_exists = True
+            rfc_title = rfc['title']
+            rfc_content = rfc['data']
+
+    if(not rfc_exists) :
+        colored_text(f"No RFC with that number", "red")
+
+    try:
+        # Create the downloaded_rfcs folder if it doesn't exist
+        if not os.path.exists("downloaded_rfcs"):
+            os.makedirs("downloaded_rfcs")
+
+        # Save the RFC content to a new text file
+        with open(f"downloaded_rfcs/RFC_{rfc_number}-{rfc_title}.txt", 'w') as file:
+            file.write(rfc_content)
+
+            colored_text("RFC downloaded successfully:", "green", True)
+    except Exception as e:
+        print(f"Error downloading RFC {rfc_number}: {e}")
+
 
 def add_method(client_ip, client_port, local_rfc_list):
     if not local_rfc_list:
@@ -86,10 +118,12 @@ def connect_to_server(client_ip, client_port, client_rfc_list, local_rfc_list):
             print("2. List server RFCs")
             print("3. Lookup specific RFC on server")
             print("4. Close the connection to server")
-            print("You may also choose an operation to be performed locally")
+            print("\n")
+            colored_text("You may also choose an operation to be performed locally :", "cyan")
             print("5. Add an RFC locally")
             print("6. Print local Current RFCs")
-            print("7. Download RFCs from Peers")
+            print("7. Get RFCs from Peers")
+            print("8. Download local RFCs")
 
             command = input("Enter the command number: ")
 
@@ -112,6 +146,9 @@ def connect_to_server(client_ip, client_port, client_rfc_list, local_rfc_list):
             elif command == "7":
                 get_rfc_from_peers(client_rfc_list, local_rfc_list)
                 continue
+            elif command == "8":
+                download_rfc_locally(local_rfc_list)
+                continue
             else:
                 colored_text("Invalid command. Please try again.", "red")
                 continue
@@ -129,8 +166,8 @@ def connect_to_server(client_ip, client_port, client_rfc_list, local_rfc_list):
 
             if command in ("2", "3"):
 
-                if (command == "3") :
-                    client_rfc_list.clear()     
+                # if (command == "3") :
+                #     client_rfc_list.clear()     
                     
                 # Update client_rfc_list based on the server's response
                 lines = response.split('\r\n')
@@ -278,17 +315,26 @@ def get_rfc_for_peers(connection_socket, addr, local_rfc_list) :
 
 
 
-def handle_peers(peering_socket, client_ip, client_port, client_rfc_list, local_rfc_list) :
+def handle_peers(server_running, peering_socket, client_ip, client_port, client_rfc_list, local_rfc_list) :
 
     try:
-        while True:
-            # Accept incoming connections and store the socket info in "connectionSocket" and the IP/port info in "addr"
-            connection_socket, addr = peering_socket.accept()
+         while server_running.value:
+            try :
+                # Accept incoming connections and store the socket info in "connectionSocket" and the IP/port info in "addr"
+                connection_socket, addr = peering_socket.accept()
 
-            # Create a new Process that calls the function with args from accept()
-            process = Process(target=get_rfc_for_peers, args=(connection_socket, addr, local_rfc_list))
-            process.start()
-            connection_socket.close()
+                # Create a new Process that calls the function with args from accept()
+                process = Process(target=get_rfc_for_peers, args=(connection_socket, addr, local_rfc_list))
+                process.start()
+                connection_socket.close()
+            except timeout:
+                # If a timeout occurs, just continue with the loop without processing the connection
+                continue
+            except Exception as e:
+                # If any other exception occurs, print it and continue with the loop
+                # print(f"Error occurred while accepting connection: {e}")
+                continue
+            
 
     
     except KeyboardInterrupt:
@@ -296,6 +342,8 @@ def handle_peers(peering_socket, client_ip, client_port, client_rfc_list, local_
 
     except Exception as e:  # Catch any exception
         colored_text(f"An error occurred: {e}", "red")
+        traceback.print_exc()
+
         colored_text("\nClosing port dedicated to peer connections..", "yellow")
 
 
@@ -362,7 +410,7 @@ def get_rfc_from_peers(client_rfc_list,local_rfc_list) :
                 download(rfc, local_rfc_list)
                 return
         else:
-            rfc_number = input("Invalid RFC code please try again")
+            rfc_number = colored_text("Invalid RFC code please try again: ", "red", True)
 
     
         
@@ -381,6 +429,7 @@ def main():
     peering_socket = socket(AF_INET, SOCK_STREAM)
 
     peering_socket.bind(('', 0))
+    peering_socket.settimeout(5)
 
     hostname, client_port = peering_socket.getsockname()
 
@@ -397,8 +446,12 @@ def main():
     colored_text(f"Peer is listening on port {client_port} with a maximum of {max_connects} connections...", "green")
     separator()
 
-    process = Process(target=handle_peers, args=(peering_socket, client_ip, client_port, client_rfc_list, local_rfc_list))
-    process.start()
+    server_running = multiprocessing.Value('i', 1)
+    p = multiprocessing.Process(target=handle_peers, args=(server_running,peering_socket, client_ip, client_port, client_rfc_list, local_rfc_list))
+    p.start()
+    
+    # process = Process(target=handle_peers, args=(peering_socket, client_ip, client_port, client_rfc_list, local_rfc_list))
+    # process.start()
     peering_socket.close()
 
     
@@ -425,12 +478,15 @@ def main():
                 connect_to_server(client_ip, client_port, client_rfc_list, local_rfc_list)
             elif command == "4":
                 colored_text("Closing the connection...", "yellow")
+                server_running.value = 0
+                p.join()
                 break
             else:
                 colored_text("Invalid command. Please try again.", "red")
 
     except KeyboardInterrupt:
         colored_text("\nKeyboardInterrupt detected. Closing the connection...", "yellow")
+        server_running.value = 0
 
     except Exception as e:  # Catch any exception
         colored_text(f"An error occurred: {e}", "red")

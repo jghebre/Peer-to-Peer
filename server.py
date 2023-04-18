@@ -2,6 +2,8 @@ from collections import deque
 
 from socket import *
 
+
+
 from multiprocessing import Process,Manager
 
 
@@ -21,6 +23,7 @@ max_connects = 5
 
 
 def colored_text(text, color, bold=False):
+    # Define a dictionary of color codes
     color_codes = {
         "black": 30,
         "red": 31,
@@ -31,8 +34,11 @@ def colored_text(text, color, bold=False):
         "cyan": 36,
         "white": 37,
     }
+    # Look up the color code for the specified color
     color_code = color_codes.get(color.lower(), 37)  # Default to white if the color is not found
+    # Set the bold code to 1 if bold is True, otherwise set it to an empty string
     bold_code = "1;" if bold else ""
+    # Print the text with the color code and bold code
     print(f"\033[{bold_code}{color_code}m{text}\033[0m")
 
 def separator() :
