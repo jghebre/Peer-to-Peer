@@ -10,11 +10,11 @@ import platform
 import traceback
 
 import os
-#This is my peer.py right now, tell me how to edit this so that the user can enter in the IP address of the server they wish to connect to, with error checking, 500 error, if server is down. This should come after user selects option 3
 
 # Define the server's IP address and port
-SERVER_IP = ''  # Use the server's IP address (use 'localhost' or '127.0.0.1' if running on the same machine)
+SERVER_IP = 'localhost'  # Use the server's IP address (use 'localhost' or '127.0.0.1' if running on the same machine)
 SERVER_PORT = 7734  # The port number used by the server
+version = "P2P-CLI/1.0"
 
 # Maximum number of connections the peer can handle
 max_connects = 5
@@ -51,6 +51,12 @@ def separator() :
 
 def download_rfc_locally(local_rfc_list):
 
+    colored_text("Here are the RFCs you have stored ready to download:", "blue", True)
+    
+    print_rfcs(local_rfc_list)
+
+    separator()
+
     rfc_number = input("Enter number of RFC to be downloaded: ")
     
     rfc_exists = False
@@ -86,22 +92,22 @@ def add_method(client_ip, client_port, local_rfc_list):
     rfc_number = input("Enter the RFC number to add: ")
     for rfc in local_rfc_list:
         if rfc['rfc_number'] == rfc_number:
-            request = f"ADD RFC {rfc_number} P2P-CI/1.0\r\nHost: {client_ip}\r\nPort: {client_port}\r\nTitle: {rfc['title']}\r\n"
+            request = f"ADD RFC {rfc_number} {version}\r\nHost: {client_ip}\r\nPort: {client_port}\r\nTitle: {rfc['title']}\r\n"
             return request
     else:
-        colored_text("RFC not found in local list.", "red")
+        colored_text("RFC not found in local list.\n", "red")
         return None
 
 
 def list_method(client_ip, client_port):
-    request = f"LIST ALL P2P-CI/1.0\r\nHost: {client_ip}\r\nPort: {client_port}\r\n"
+    request = f"LIST ALL {version}\r\nHost: {client_ip}\r\nPort: {client_port}\r\n"
     return request
 
 
 def lookup_method(client_ip, client_port):
     rfc_number = input("Enter the RFC number to look up: ")
     title = input("Enter the title of the RFC: ")
-    request = f"LOOKUP RFC {rfc_number} P2P-CI/1.0\r\nHost: {client_ip}\r\nPort: {client_port}\r\nTitle: {title}\r\n"
+    request = f"LOOKUP RFC {rfc_number} {version}\r\nHost: {client_ip}\r\nPort: {client_port}\r\nTitle: {title}\r\n"
     return request
 
 
@@ -109,30 +115,33 @@ def connect_to_server(client_ip, client_port, client_rfc_list, local_rfc_list):
    # Create a socket object (TCP)
     peer_socket = socket(AF_INET, SOCK_STREAM)
 
-    # Get the server IP address from user input
-    SERVER_IP = input("Enter the server's IP address: ")
 
     try:
+        
         # Connect to the server
         peer_socket.connect((SERVER_IP, SERVER_PORT))
 
         # Receive the welcome message from the server
+        print()
+        separator()
+
         welcome_message = peer_socket.recv(1024).decode()
-        print(welcome_message)
+        colored_text(welcome_message, "green", True)
 
         while True:
+            print("")
             separator()
-            colored_text("Please choose a method to send to the server:", "green", True)
+            colored_text("\nPlease choose a method to send to the server:", "green", True)
             print("1. Add RFC to server")
             print("2. List server RFCs")
             print("3. Lookup specific RFC on server")
             print("4. Close the connection to server")
             print("\n")
-            colored_text("You may also choose an operation to be performed locally :", "cyan")
+            colored_text("You may also choose an operation to be performed locally:", "cyan")
             print("5. Add an RFC locally")
             print("6. Print local Current RFCs")
             print("7. Get RFCs from Peers")
-            print("8. Download local RFCs")
+            print("8. Download local RFCs\n")
 
             command = input("Enter the command number: ")
 
@@ -201,7 +210,7 @@ def connect_to_server(client_ip, client_port, client_rfc_list, local_rfc_list):
 
     except ConnectionRefusedError:
         # Handle server down error
-        colored_text("Error: The server is down or the IP address is incorrect. Please try again later.", "red")
+        colored_text("\nError: The server is down or the IP address is incorrect. Please try again later.\n", "red", True)
         peer_socket.close()
 
     except Exception as e:
@@ -214,7 +223,7 @@ def create_rfc_entry(rfc_number, title, data):
     return {"rfc_number": rfc_number, "title": title, "data": data}
 
 def add_rfc(local_rfc_list):
-    colored_text("Enter the RFC information:", "yellow")
+    colored_text("\nEnter the RFC information:", "yellow")
 
     # Prompt the user to enter the RFC number, title, and data
     rfc_number = input("RFC Number: ")
@@ -225,7 +234,7 @@ def add_rfc(local_rfc_list):
     rfc_entry = create_rfc_entry(rfc_number, title, data)
     local_rfc_list.append(rfc_entry)
 
-    colored_text(f"Added RFC {rfc_number} with title '{title}' and data '{data}' to the local RFC list.", "blue")
+    colored_text(f"\nAdded RFC {rfc_number} with title '{title}' and data '{data}' to the local RFC list.", "blue")
 
 
 
@@ -251,11 +260,14 @@ def parse_message(message):
     lines = message.split("\r\n")
     parts = lines[0].split(" ")
     method = parts[0]
-    version = parts[-1]
+    client_version = parts[-1]
     rfc_number = parts[2]
 
+    if(version != client_version) :
+            raise Exception("505 P2P Version Not Supported".encode())
+
     if method != "GET":
-        raise Exception("Incorrect Method, please use GET")
+        raise Exception("400 Incorrect Method, please use GET")
 
 
     # Parse the headers into key-value pairs    
@@ -269,13 +281,13 @@ def parse_message(message):
     # Extract the OS from the headers, if present
     os = headers.get("OS:", None)
     if(os == None) :
-        raise Exception("Incorrect Header, please use OS:")
+        raise Exception("400 Incorrect Header, please use OS:")
         
 
     # Extract the OS from the headers, if present
     host = headers.get("Host:", None)
     if(host == None) :
-        raise Exception("Incorrect Header, please use Host:")
+        raise Exception("400 Incorrect Header, please use Host:")
 
     return {
         "method": method,
@@ -294,7 +306,7 @@ def get_rfc(rfc_number, local_rfc_list):
 
 
 def create_response(rfc, os):
-    response = "P2P-CI/1.0 200 OK\r\n"
+    response = f"{version} 200 OK\r\n"
     response += f"Date: {datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S')} GMT\r\n"
     response += f"OS: {os}\r\n"
     # response += f"Last-Modified: {rfc['last_modified'].strftime('%a, %d %b %Y %H:%M:%S')} GMT\r\n"
@@ -366,16 +378,22 @@ def handle_peers(server_running, peering_socket, client_ip, client_port, client_
     finally:
         # Close the server socket
         peering_socket.close()
-        print("Server socket closed.")
+        print("Peer Server socket closed.\n")
 
 def download(rfc, local_rfc_list):
     peer_socket = socket(AF_INET, SOCK_STREAM)
 
-    peer_socket.connect((rfc["hostname"], rfc["port"]))
+    peer_host = rfc["hostname"]
+    peer_port = rfc["port"]
+    peer_socket.connect((peer_host, peer_port))
+
+    print('\n')
+    colored_text(f"Retreiving RFC from {peer_host} on port {peer_port} ......", "magenta")
+    print('\n')
 
     
 
-    request = f"GET RFC {rfc['rfc_number']} P2P-CI/1.0\r\n"
+    request = f"GET RFC {rfc['rfc_number']} {version}\r\n"
     request += f"Host: {gethostname()}\r\n"
     request += f"OS: {platform.system()} {platform.release()}\r\n"
 
@@ -417,14 +435,15 @@ def get_rfc_from_peers(client_rfc_list,local_rfc_list) :
             colored_text(f"Port: {rfc['port']}", "cyan")
         separator()
 
-    rfc_number = input("Enter the RFC number you wish to download or type CLOSE to exit: ")
+    rfc_number = input("Enter the RFC number you wish to retreive or type CLOSE to exit: ")
     while (rfc_number != "CLOSE") :
         for rfc in client_rfc_list:
             if rfc['rfc_number'] == rfc_number:
                 download(rfc, local_rfc_list)
                 return
         else:
-            rfc_number = colored_text("Invalid RFC code please try again: ", "red", True)
+            colored_text("Invalid RFC code please try again: ", "red", True)
+            rfc_number = input("Enter the RFC number you wish to download or type CLOSE to exit: ")
 
     
         
@@ -458,7 +477,8 @@ def main():
 
     # Listen for incoming connections maximum of 5 at one time
     peering_socket.listen(max_connects)
-    colored_text(f"Peer is listening on port {client_port} with a maximum of {max_connects} connections...", "green")
+    
+    colored_text(f"\nPeer is listening on port {client_port} with a maximum of {max_connects} connections...", "green")
     separator()
 
     server_running = multiprocessing.Value('i', 1)
@@ -476,12 +496,12 @@ def main():
 
 
         while True :
-            colored_text("Welcome to the Peer-to-Peer Network!", "green")
+            colored_text("\nWelcome to the Peer-to-Peer Network!\n", "green")
             print("Please enter a command:")
             print("1. Add an RFC")
             print("2. Print Current RFCs")
             print("3. Talk to the server")
-            print("4. Close the connection")
+            print("4. Close the connection\n")
 
             command = input("Enter the command number: ")
 
@@ -492,7 +512,7 @@ def main():
             elif command == "3":
                 connect_to_server(client_ip, client_port, client_rfc_list, local_rfc_list)
             elif command == "4":
-                colored_text("Closing the connection...", "yellow")
+                colored_text("\nClosing the connection...\n", "yellow", True)
                 server_running.value = 0
                 p.join()
                 break
@@ -500,11 +520,11 @@ def main():
                 colored_text("Invalid command. Please try again.", "red")
 
     except KeyboardInterrupt:
-        colored_text("\nKeyboardInterrupt detected. Closing the connection...", "yellow")
+        colored_text("\nKeyboardInterrupt detected. Closing the connection...\n", "yellow")
         server_running.value = 0
 
     except Exception as e:  # Catch any exception
-        colored_text(f"An error occurred: {e}", "red")
+        colored_text(f"An error occurred: {e}\n", "red")
         traceback.print_exc()
         return
 

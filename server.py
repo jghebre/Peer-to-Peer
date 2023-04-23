@@ -13,6 +13,8 @@ SERVER_PORT = 7734
 # Maximum number of connections the server can handle
 max_connects = 5
 
+version = "P2P-CLI/1.0"
+
 # # Create linked list of info of current peers
 # currentPeers = deque()
 
@@ -54,7 +56,7 @@ def separator() :
 
 
 def parse_message(message):
-    print(message)
+    colored_text(message, "blue")
     # Split the message by line breaks (<cr><lf>)    
     lines = message.split("\r\n")
     parts = lines[0].split(" ")
@@ -105,9 +107,9 @@ def add(connection_socket, headers, client_hostname, rfc, rfcIndex):
     }
 
     rfcIndex.append(rfc_entry)
-    print(f"Added RFC {rfc} with title '{headers['Title:']}' from {client_hostname}:{headers['Port:']}")
+    colored_text(f"Added RFC {rfc} with title '{headers['Title:']}' from {client_hostname}:{headers['Port:']}", "blue")
 
-    success_message = f"RFC {rfc} added successfully"
+    success_message = f"{version} 200 OK \n RFC {rfc} added successfully"
     connection_socket.send(success_message.encode())
     return 200  # OK
 
@@ -126,7 +128,6 @@ def list_items(connection_socket, headers, client_hostname, rfc, rfcIndex):
         for entry in rfcIndex
     ]
 
-    version = "P2P-CI/1.0"
     status_code = 200
     phrase = "OK"
 
@@ -159,7 +160,7 @@ def lookup(connection_socket, headers, client_hostname, rfc, rfcIndex):
         status_code = 200
         phrase = "OK"
 
-    version = "P2P-CI/1.0"
+   
 
     # Create the first line of the response with the version, status code, and phrase
     first_line = f"{version} {status_code} {phrase}"
@@ -199,8 +200,7 @@ def remove_peer_records(client_hostname, port, rfcIndex, currentPeers, rec_ip, r
     
     # Remove all records associated with the peer from rfcIndex
     colored_text(f"Removing {client_hostname} from port {port} indexes", "yellow", True)
-    print(rfcIndex)
-    print(rec_ip, rec_port)
+
     rfcIndex[:] = [entry for entry in rfcIndex if not (entry["hostname"] == str(rec_ip) and int(entry["port"]) == int(rec_port))]
 
     # Remove the peer from currentPeers
@@ -209,7 +209,7 @@ def remove_peer_records(client_hostname, port, rfcIndex, currentPeers, rec_ip, r
     print(currentPeers, rfcIndex)
 
 def handleClient(connection_socket, addr, rfcIndex, currentPeers) :
-    print(f"Client at ip address: {addr[0]} and port number {addr[1]} has connected")
+    colored_text(f"\nClient at ip address: {addr[0]} and port number {addr[1]} has connected\n", "blue", True)
     
     # Attempt to get a clients hostname
     client_ip = addr[0]
@@ -223,7 +223,7 @@ def handleClient(connection_socket, addr, rfcIndex, currentPeers) :
     currentPeers.append((client_hostname, addr[1]))
 
     # Send a welcome message to the client
-    welcome_message = "Welcome to the Centralized Index, please enter a command:"
+    welcome_message = "\nWelcome to the Centralized Index, please enter a command"
     # Encode the string to bytes so it can be sent over the network
     connection_socket.send(welcome_message.encode())
 
@@ -236,8 +236,11 @@ def handleClient(connection_socket, addr, rfcIndex, currentPeers) :
         parsed_message = parse_message(command)
         method = parsed_message["method"]
         rfc = parsed_message["rfc_number"]
-        version = parsed_message["version"]
+        client_version = parsed_message["version"]
         headers = parsed_message["headers"]
+
+        if(version != client_version) :
+            connection_socket.send("505 P2P Version Not Supported".encode())
         
 
         # Call the handle_method function on these parameters to choose which method gets serviced
@@ -274,7 +277,7 @@ def main():
 
     # Listen for incoming connections maximum of 5 at one time
     serverSocket.listen(max_connects)
-    colored_text(f"Server is on IP {public_ip} listening on port {SERVER_PORT} with a maximum of {max_connects} connections...", "green")
+    colored_text(f"Server is on IP {public_ip} listening on port {SERVER_PORT} with a maximum of {max_connects} connections...", "green", True)
 
     try:
         while True:
@@ -288,7 +291,7 @@ def main():
 
 
     except KeyboardInterrupt: 
-        print("\nServer is shutting down...")
+        colored_text("\nServer is shutting down...", "yellow", True)
     
     except Exception as e:  # Catch any exception
         colored_text(f"An error occurred: {e}", "red")
@@ -299,7 +302,7 @@ def main():
     finally:
         # Close the server socket
         serverSocket.close()
-        print("Server socket closed.")
+        colored_text("Server socket closed.", "cyan")
 
 if __name__ == "__main__":
     main()
