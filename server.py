@@ -57,6 +57,7 @@ def separator() :
 
 def parse_message(message):
     colored_text(message, "blue")
+    separator()
     # Split the message by line breaks (<cr><lf>)    
     lines = message.split("\r\n")
     parts = lines[0].split(" ")
@@ -93,7 +94,6 @@ def parse_message(message):
 def add(connection_socket, headers, client_hostname, rfc, rfcIndex):
 
     required_headers = {"Host:", "Port:", "Title:"}
-    print(headers.keys())
     if not required_headers.issubset(headers.keys()):
         error_message = f"Missing required header fields"
         connection_socket.send(error_message.encode())
@@ -108,6 +108,7 @@ def add(connection_socket, headers, client_hostname, rfc, rfcIndex):
 
     rfcIndex.append(rfc_entry)
     colored_text(f"Added RFC {rfc} with title '{headers['Title:']}' from {client_hostname}:{headers['Port:']}", "blue")
+    separator()
 
     success_message = f"{version} 200 OK \n RFC {rfc} added successfully"
     connection_socket.send(success_message.encode())
@@ -210,6 +211,7 @@ def remove_peer_records(client_hostname, port, rfcIndex, currentPeers, rec_ip, r
 
 def handleClient(connection_socket, addr, rfcIndex, currentPeers) :
     colored_text(f"\nClient at ip address: {addr[0]} and port number {addr[1]} has connected\n", "blue", True)
+    separator()
     
     # Attempt to get a clients hostname
     client_ip = addr[0]
@@ -302,7 +304,7 @@ def main():
     finally:
         # Close the server socket
         serverSocket.close()
-        colored_text("Server socket closed.", "cyan")
+        colored_text("\nServer socket closed.\n", "cyan")
 
 if __name__ == "__main__":
     main()
