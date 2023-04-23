@@ -1,5 +1,6 @@
 import multiprocessing
 from socket import *
+import requests
 
 from collections import deque
 from multiprocessing import Manager, Process
@@ -9,15 +10,21 @@ import platform
 import traceback
 
 import os
-
+#This is my peer.py right now, tell me how to edit this so that the user can enter in the IP address of the server they wish to connect to, with error checking, 500 error, if server is down. This should come after user selects option 3
 
 # Define the server's IP address and port
-SERVER_IP = '127.0.0.1'  # Use the server's IP address (use 'localhost' or '127.0.0.1' if running on the same machine)
+SERVER_IP = ''  # Use the server's IP address (use 'localhost' or '127.0.0.1' if running on the same machine)
 SERVER_PORT = 7734  # The port number used by the server
 
 # Maximum number of connections the peer can handle
 max_connects = 5
 
+
+
+
+def get_public_ip():
+    response = requests.get('https://api.ipify.org?format=json')
+    return response.json()['ip']
 
 
 # Create a global linked list variable for holding all current client RFCs
@@ -102,6 +109,8 @@ def connect_to_server(client_ip, client_port, client_rfc_list, local_rfc_list):
    # Create a socket object (TCP)
     peer_socket = socket(AF_INET, SOCK_STREAM)
 
+    # Get the server IP address from user input
+    SERVER_IP = input("Enter the server's IP address: ")
 
     try:
         # Connect to the server
@@ -190,10 +199,15 @@ def connect_to_server(client_ip, client_port, client_rfc_list, local_rfc_list):
    
         
 
-    except:
+    except ConnectionRefusedError:
+        # Handle server down error
+        colored_text("Error: The server is down or the IP address is incorrect. Please try again later.", "red")
+        peer_socket.close()
+
+    except Exception as e:
         # Close the connection
         peer_socket.close()
-        raise
+        print(f"Error: {e}")
 
 # Updated create_rfc_entry function with a data field
 def create_rfc_entry(rfc_number, title, data):
@@ -427,6 +441,7 @@ def main():
     client_rfc_list = manager.list()
 
     peering_socket = socket(AF_INET, SOCK_STREAM)
+
 
     peering_socket.bind(('', 0))
     peering_socket.settimeout(5)

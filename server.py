@@ -2,7 +2,7 @@ from collections import deque
 
 from socket import *
 
-
+import requests
 
 from multiprocessing import Process,Manager
 
@@ -18,6 +18,14 @@ max_connects = 5
 
 # # Create linked list of rfc indexes
 # rfcIndex = deque()
+
+
+
+
+
+def get_public_ip():
+    response = requests.get('https://api.ipify.org?format=json')
+    return response.json()['ip']
 
 
 
@@ -261,9 +269,12 @@ def main():
     # Bind server to server port and accept connections from everywhere
     serverSocket.bind(('', SERVER_PORT))
 
+    public_ip = get_public_ip()
+    print(f"Public IP address: {public_ip}")
+
     # Listen for incoming connections maximum of 5 at one time
     serverSocket.listen(max_connects)
-    colored_text(f"Server is listening on port {SERVER_PORT} with a maximum of {max_connects} connections...", "green")
+    colored_text(f"Server is on IP {public_ip} listening on port {SERVER_PORT} with a maximum of {max_connects} connections...", "green")
 
     try:
         while True:
