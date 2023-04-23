@@ -1,6 +1,6 @@
 import multiprocessing
 from socket import *
-import requests
+
 
 from collections import deque
 from multiprocessing import Manager, Process
@@ -22,9 +22,9 @@ max_connects = 5
 
 
 
-def get_public_ip():
-    response = requests.get('https://api.ipify.org?format=json')
-    return response.json()['ip']
+# def get_public_ip():
+#     response = requests.get('https://api.ipify.org?format=json')
+#     return response.json()['ip']
 
 
 # Create a global linked list variable for holding all current client RFCs
@@ -51,7 +51,9 @@ def separator() :
 
 def download_rfc_locally(local_rfc_list):
 
-    colored_text("Here are the RFCs you have stored ready to download:", "blue", True)
+    separator()
+
+    colored_text("\nHere are the RFCs you have stored ready to download:\n", "blue", True)
     
     print_rfcs(local_rfc_list)
 
@@ -79,7 +81,7 @@ def download_rfc_locally(local_rfc_list):
         with open(f"downloaded_rfcs/RFC_{rfc_number}-{rfc_title}.txt", 'w') as file:
             file.write(rfc_content)
 
-            colored_text("RFC downloaded successfully:", "green", True)
+            colored_text(f"RFC {rfc_number} downloaded successfully", "green", True)
     except Exception as e:
         print(f"Error downloading RFC {rfc_number}: {e}")
 
@@ -172,6 +174,7 @@ def connect_to_server(client_ip, client_port, client_rfc_list, local_rfc_list):
                 continue
 
             if request:
+                separator()
                 colored_text("Sending: ", "white", True)
                 colored_text(request, "blue")
                 colored_text("....", "white")
@@ -249,7 +252,7 @@ def print_rfcs(local_rfc_list) :
             rfc_number = colored_text(f"RFC Number: {rfc['rfc_number']}", "yellow")
             title = colored_text(f"Title: {rfc['title']}", "green")
             data = colored_text(f"Data: {rfc['data']}", "blue")
-        separator()
+        
 
 def parse_message(message):
 
