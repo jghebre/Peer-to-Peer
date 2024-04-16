@@ -1,5 +1,5 @@
 # 401_project
-# Authors: Jonah Ghebremichael & Anaica Grouver
+# Authors: Jonah Ghebremichael
 
 # Set Up
 
